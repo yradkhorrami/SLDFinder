@@ -10,6 +10,7 @@
 
 #include "TFile.h"
 #include "TH1F.h"
+#include "TH1F.h"
 #include "TTree.h"
 
 using namespace lcio ;
@@ -48,19 +49,25 @@ class SLDFinder : public Processor
 		std::string				m_rootFile{};
 		bool					m_fillRootTree = true;
 
+		int					n_CSLD;
+		int					n_BSLD;
+
 		int					m_nRun;
 		int					m_nEvt;
 		int					m_nRunSum;
 		int					m_nEvtSum;
 		int					m_nSLDecayOfBHadron;
 		int					m_nSLDecayOfCHadron;
-		int					m_nSLDecayOfTauLepton;
 		int					m_nSLDecayTotal;
 		int					m_nSLDecayToElectron;
 		int					m_nSLDecayToMuon;
 		int					m_nSLDecayToTau;
+		IntVector				m_SLDType{};
+		IntVector				m_SLDMode{};
 		TFile					*m_pTFile{};
 		TTree					*m_pTTree{};
+		TH1F					*h_CSLD{};
+		TH1F					*h_BSLD{};
 
 };
 

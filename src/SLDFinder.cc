@@ -6,13 +6,14 @@ SLDFinder aSLDFinder;
 SLDFinder::SLDFinder() :
 
 	Processor("SLDFinder"),
+	n_CSLD(0),
+	n_BSLD(0),
 	m_nRun(0),
 	m_nEvt(0),
 	m_nRunSum(0),
 	m_nEvtSum(0),
 	m_nSLDecayOfBHadron(0),
 	m_nSLDecayOfCHadron(0),
-	m_nSLDecayOfTauLepton(0),
 	m_nSLDecayTotal(0),
 	m_nSLDecayToElectron(0),
 	m_nSLDecayToMuon(0),
@@ -42,10 +43,10 @@ SLDFinder::SLDFinder() :
 				);
 
 	registerOutputCollection(	LCIO::RECONSTRUCTEDPARTICLE,
-					"CorrectedPfoCollection",
-					"Name of output pfo collection",
+					"SLDLeptons",
+					"Name of leptons from semi-leptonic decays collection",
 					m_SLDLeptonCollection,
-					std::string("CorrectedPfoCollection")
+					std::string("SLDLeptons")
 				);
 
 	registerProcessorParameter(	"fillRootTree",
@@ -79,12 +80,20 @@ void SLDFinder::init()
 	m_pTTree->Branch("event", &m_nEvt, "event/I");
 	m_pTTree->Branch("nSLDecayOfBHadron", &m_nSLDecayOfBHadron, "nSLDecayOfBHadron/I");
 	m_pTTree->Branch("nSLDecayOfCHadron", &m_nSLDecayOfCHadron, "nSLDecayOfCHadron/I");
-	m_pTTree->Branch("nSLDecayOfTauLepton", &m_nSLDecayOfTauLepton, "nSLDecayOfTauLepton/I");
 	m_pTTree->Branch("nSLDecayTotal", &m_nSLDecayTotal, "nSLDecayTotal/I");
 	m_pTTree->Branch("nSLDecayToElectron", &m_nSLDecayToElectron, "nSLDecayToElectron/I");
 	m_pTTree->Branch("nSLDecayToMuon", &m_nSLDecayToMuon, "nSLDecayToMuon/I");
 	m_pTTree->Branch("nSLDecayToTau", &m_nSLDecayToTau, "nSLDecayToTau/I");
-
+	m_pTTree->Branch("SLDType", &m_SLDType);
+	m_pTTree->Branch("SLDMode", &m_SLDMode);
+	h_CSLD = new TH1F( "SLDOfCHadron" , ";" , 3 , 0.0 , 3.0 ); n_CSLD = 0;
+	h_CSLD->GetXaxis()->SetBinLabel(1,"e^{#pm}");
+	h_CSLD->GetXaxis()->SetBinLabel(2,"#mu^{#pm}");
+	h_CSLD->GetXaxis()->SetBinLabel(3,"#tau^{#pm}");
+	h_BSLD = new TH1F( "SLDOfBHadron" , ";" , 3 , 0.0 , 3.0 ); n_BSLD = 0;
+	h_BSLD->GetXaxis()->SetBinLabel(1,"e^{#pm}");
+	h_BSLD->GetXaxis()->SetBinLabel(2,"#mu^{#pm}");
+	h_BSLD->GetXaxis()->SetBinLabel(3,"#tau^{#pm}");
 }
 
 void SLDFinder::processRunHeader()
@@ -100,15 +109,17 @@ void SLDFinder::Clear()
 	m_nEvt = 0;
 	m_nSLDecayOfBHadron = 0;
 	m_nSLDecayOfCHadron = 0;
-	m_nSLDecayOfTauLepton = 0;
 	m_nSLDecayTotal = 0;
 	m_nSLDecayToElectron = 0;
 	m_nSLDecayToMuon = 0;
 	m_nSLDecayToTau = 0;
+	m_SLDType.clear();
+	m_SLDMode.clear();
 }
 
 void SLDFinder::processEvent( EVENT::LCEvent *pLCEvent )
 {
+	this->Clear();
 	m_nRun = pLCEvent->getRunNumber();
 	m_nEvt = pLCEvent->getEventNumber();
 	++m_nEvtSum;
@@ -136,19 +147,51 @@ void SLDFinder::processEvent( EVENT::LCEvent *pLCEvent )
 			findSLDecay( testMCP , isSLD , parentFlavour , leptonFlavour );
 			if ( isSLD )
 			{
-				if ( abs( parentFlavour ) == 4 ) ++m_nSLDecayOfCHadron;
-				if ( abs( parentFlavour ) == 5 ) ++m_nSLDecayOfBHadron;
-				if ( abs( parentFlavour ) == 15 ) ++m_nSLDecayOfTauLepton;
-				if ( abs( leptonFlavour ) == 11 ) ++m_nSLDecayToElectron;
-				if ( abs( leptonFlavour ) == 13 ) ++m_nSLDecayToMuon;
-				if ( abs( leptonFlavour ) == 15 ) ++m_nSLDecayToTau;
+				if ( abs( parentFlavour ) == 4 )
+				{
+					++m_nSLDecayOfCHadron;
+					m_SLDType.push_back( 4 );
+					++n_CSLD;
+					if ( abs( leptonFlavour ) == 11 ) h_CSLD->Fill( 0.5 );
+					if ( abs( leptonFlavour ) == 13 ) h_CSLD->Fill( 1.5 );
+					if ( abs( leptonFlavour ) == 15 ) h_CSLD->Fill( 2.5 );
+				}
+				else if ( abs( parentFlavour ) == 5 )
+				{
+					++m_nSLDecayOfBHadron;
+					m_SLDType.push_back( 5 );
+					++n_BSLD;
+					if ( abs( leptonFlavour ) == 11 ) h_BSLD->Fill( 0.5 );
+					if ( abs( leptonFlavour ) == 13 ) h_BSLD->Fill( 1.5 );
+					if ( abs( leptonFlavour ) == 15 ) h_BSLD->Fill( 2.5 );
+				}
+				if ( abs( leptonFlavour ) == 11 )
+				{
+					++m_nSLDecayToElectron;
+					m_SLDMode.push_back( 11 );
+				}
+				else if ( abs( leptonFlavour ) == 13 )
+				{
+					++m_nSLDecayToMuon;
+					m_SLDMode.push_back( 13 );
+				}
+				else if ( abs( leptonFlavour ) == 15 )
+				{
+					++m_nSLDecayToTau;
+					m_SLDMode.push_back( 13 );
+				}
 				streamlog_out(DEBUG3) << "	<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << std::endl;
 				streamlog_out(DEBUG3) << "	<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Found one semi-leptonic decay >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << std::endl;
 				streamlog_out(DEBUG3) << "		Flavour of Parent Particle:	" << parentFlavour << std::endl;
 				streamlog_out(DEBUG3) << "		Flavour of Daughter Particle:	" << leptonFlavour << std::endl;
-				++m_nSLDecayTotal;
+				if ( abs( parentFlavour ) == 4 || abs( parentFlavour ) == 5 || abs( parentFlavour ) == 15 ) ++m_nSLDecayTotal;
 			}
 		}
+		streamlog_out(DEBUG3) << "		Number of semi-leptonic decays of B-hadron:	" << m_nSLDecayOfBHadron << std::endl;
+		streamlog_out(DEBUG3) << "		Number of semi-leptonic decays of C-hadron:	" << m_nSLDecayOfCHadron << std::endl;
+		streamlog_out(DEBUG3) << "		Number of semi-leptonic decays to electron:	" << m_nSLDecayToElectron << std::endl;
+		streamlog_out(DEBUG3) << "		Number of semi-leptonic decays to muon:	" << m_nSLDecayToMuon << std::endl;
+		streamlog_out(DEBUG3) << "		Number of semi-leptonic decays to tau-lepton:	" << m_nSLDecayToTau << std::endl;
 	}
 	catch(DataNotAvailableException &e)
 	{
@@ -159,25 +202,28 @@ void SLDFinder::processEvent( EVENT::LCEvent *pLCEvent )
 
 void SLDFinder::findSLDecay( EVENT::MCParticle *testMCP , bool &isSLD , int &parentFlavour , int &leptonFlavour )
 {
-	if ( ( abs( testMCP->getPDG() ) == 11 || abs( testMCP->getPDG() ) == 13 || abs( testMCP->getPDG() ) == 15 ) && testMCP->getGeneratorStatus() == 1 && !( testMCP->isOverlay() ) )
+	if ( ( abs( testMCP->getPDG() ) == 11 || abs( testMCP->getPDG() ) == 13 || abs( testMCP->getPDG() ) == 15 ) && !( testMCP->isOverlay() ) )// && testMCP->getGeneratorStatus() == 1 )
 	{
 		int leptonCharge = ( int ) testMCP->getCharge();
 		for ( unsigned int i_parent = 0 ; i_parent < testMCP->getParents().size() ; ++i_parent )
 		{
 			MCParticle *parentMCP = testMCP->getParents()[ i_parent ];
-			for ( unsigned int i_daughter = 0 ; i_daughter < parentMCP->getDaughters().size() ; ++i_daughter )
+			if ( parentMCP->getGeneratorStatus() == 2 && ( floor( abs( parentMCP->getPDG() ) / 100 ) == 4 || ( floor( abs( parentMCP->getPDG() ) / 1000 ) == 4 ) || floor( abs( parentMCP->getPDG() ) / 100 ) == 5 || ( floor( abs( parentMCP->getPDG() ) / 1000 ) == 5 ) ) )
 			{
-				int expectedNeutrinoPDG = -1 * ( testMCP->getPDG() - leptonCharge );
-				MCParticle *daughterMCP = parentMCP->getDaughters()[ i_daughter ];
-				if ( daughterMCP->getPDG() == expectedNeutrinoPDG )
+				for ( unsigned int i_daughter = 0 ; i_daughter < parentMCP->getDaughters().size() ; ++i_daughter )
 				{
-					isSLD = true;
-					if ( parentMCP->getGeneratorStatus() == 2 && ( floor( abs( parentMCP->getPDG() ) / 100 ) == 5 || ( floor( abs( parentMCP->getPDG() ) / 1000 ) == 5 ) ) ) parentFlavour = 5;
-					if ( parentMCP->getGeneratorStatus() == 2 && ( floor( abs( parentMCP->getPDG() ) / 100 ) == 4 || ( floor( abs( parentMCP->getPDG() ) / 1000 ) == 4 ) ) ) parentFlavour = 4;
-					if ( parentMCP->getGeneratorStatus() == 2 && abs( parentMCP->getPDG() ) == 15 ) parentFlavour = 15;
-					if ( abs( testMCP->getPDG() ) == 11 && testMCP->getGeneratorStatus() == 1 ) leptonFlavour = 11;
-					if ( abs( testMCP->getPDG() ) == 13 && testMCP->getGeneratorStatus() == 1 ) leptonFlavour = 13;
-					if ( abs( testMCP->getPDG() ) == 15 && testMCP->getGeneratorStatus() == 1 ) leptonFlavour = 15;
+					int expectedNeutrinoPDG = -1 * ( testMCP->getPDG() - leptonCharge );
+					MCParticle *daughterMCP = parentMCP->getDaughters()[ i_daughter ];
+					if ( daughterMCP->getPDG() == expectedNeutrinoPDG )
+					{
+						isSLD = true;
+						if ( floor( abs( parentMCP->getPDG() ) / 100 ) == 4 || ( floor( abs( parentMCP->getPDG() ) / 1000 ) == 4 ) ) parentFlavour = 4;
+						if ( floor( abs( parentMCP->getPDG() ) / 100 ) == 5 || ( floor( abs( parentMCP->getPDG() ) / 1000 ) == 5 ) ) parentFlavour = 5;
+						if ( abs( testMCP->getPDG() ) == 11 && testMCP->getGeneratorStatus() == 1 ) leptonFlavour = 11;
+						if ( abs( testMCP->getPDG() ) == 13 && testMCP->getGeneratorStatus() == 1 ) leptonFlavour = 13;
+//						if ( abs( testMCP->getPDG() ) == 15 && testMCP->getGeneratorStatus() == 1 ) leptonFlavour = 15;
+						if ( abs( testMCP->getPDG() ) == 15 ) leptonFlavour = 15;
+					}
 				}
 			}
 		}
@@ -204,6 +250,8 @@ void SLDFinder::end()
 
 	m_pTFile->cd();
 	m_pTTree->Write();
+	h_CSLD->Scale( 100.0 / n_CSLD ); h_CSLD->GetYaxis()->SetRangeUser(0.0, 100.0); h_CSLD->Write();
+	h_BSLD->Scale( 100.0 / n_BSLD ); h_BSLD->GetYaxis()->SetRangeUser(0.0, 100.0); h_BSLD->Write();
 	m_pTFile->Close();
 	delete m_pTFile;
 	std::cout << " END : processed events: " << m_nEvtSum << std::endl;
