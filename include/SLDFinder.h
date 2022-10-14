@@ -6,6 +6,9 @@
 #include "EVENT/LCStrVec.h"
 #include <EVENT/LCCollection.h>
 #include <EVENT/MCParticle.h>
+#include <EVENT/ReconstructedParticle.h>
+#include "UTIL/LCRelationNavigator.h"
+#include "DDMarlinCED.h"
 #include <EVENT/LCParameters.h>
 
 #include "TFile.h"
@@ -16,6 +19,7 @@
 using namespace lcio ;
 using namespace marlin ;
 
+typedef std::vector<EVENT::ReconstructedParticle*>	pfoVector;
 class SLDFinder : public Processor
 {
 	public:
@@ -32,6 +36,8 @@ class SLDFinder : public Processor
 		virtual void processRunHeader();
 		virtual void processEvent( EVENT::LCEvent *pLCEvent );
 		virtual void findSLDecay( EVENT::MCParticle *testMCP , bool &isSLD , int &parentFlavour , int &leptonFlavour );
+		EVENT::ReconstructedParticle* getLinkedPFO( EVENT::MCParticle *mcParticle , LCRelationNavigator RecoMCParticleNav , LCRelationNavigator MCParticleRecoNav , bool getChargedPFO , bool getNeutralPFO , float &weightPFOtoMCP , float &weightMCPtoPFO );
+		virtual void getJetAssignedToParticle( EVENT::ReconstructedParticle *particle , std::vector<EVENT::ReconstructedParticle*> jetVector , bool &foundParticleInJet , int &assignedJetIndex );
 		virtual void check( EVENT::LCEvent *pLCEvent );
 		virtual void end();
 		void Clear();
@@ -43,6 +49,7 @@ class SLDFinder : public Processor
 		typedef std::vector<float>		FloatVector;
 
 		std::string				m_MCParticleCollection{};
+		std::string				m_inputJetCollection{};
 		std::string				m_MCTruthRecoLinkCollection{};
 		std::string				m_RecoMCTruthLinkCollection{};
 		std::string				m_SLDLeptonCollection{};
@@ -59,6 +66,7 @@ class SLDFinder : public Processor
 		int					m_nSLDecayOfBHadron;
 		int					m_nSLDecayOfCHadron;
 		int					m_nSLDecayTotal;
+		IntVector				m_nSLDecayPerJet{};
 		int					m_nSLDecayToElectron;
 		int					m_nSLDecayToMuon;
 		int					m_nSLDecayToTau;
